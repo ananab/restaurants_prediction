@@ -1,0 +1,31 @@
+---
+title: "EDA"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+air_reserve = read_csv("../../data2/air_reserve.csv")
+air_store_info = read_csv("../../data2/air_store_info.csv")
+air_visit_data = read_csv("../../data2/air_visit_data.csv")
+date_info = read_csv("../../data2/date_info.csv")
+hpg_reserve = read_csv("../../data2/hpg_reserve.csv")
+hpg_store_info = read_csv("../../data2/hpg_store_info.csv")
+store_id_relation = read_csv("../../data2/store_id_relation.csv")
+sample_submission = read_csv("../../data2/sample_submission.csv")
+```
+```{r}
+air_reserve %>% 
+  group_by(air_store_id) %>% 
+  summarise(count = sum(reserve_visitors)) %>%
+  ggplot() + 
+  geom_histogram(aes(count))
+```
+
