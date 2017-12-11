@@ -9,23 +9,340 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
+
+# general visualisation
+library('scales') # visualisation
+library('grid') # visualisation
+library('gridExtra') # visualisation
+library('RColorBrewer') # visualisation
+library('corrplot') # visualisation
+
+# general data manipulation
+library('data.table') # data manipulation
+library('stringr') # string manipulation
+library('forcats') # factor manipulation
+
+# specific visualisation
+library('ggfortify') # visualisation
+library('ggrepel') # visualisation
+library('ggridges') # visualisation
+library('ggExtra') # visualisation
+# library('ggforce') # visualisation
+
+# specific data manipulation
+library('lazyeval') # data wrangling
+library('broom') # data wrangling
+
+# Date plus forecast
+library('lubridate') # date and time
+library('timeDate') # date and time
+# library('tseries') # time series analysis
+# library('forecast') # time series analysis
+# library('prophet') # time series analysis
+
+# Maps / geospatial
+library('geosphere') # geospatial locations
+library('leaflet') # maps
+library('leaflet.extras') # maps
+library('maps') # maps
+
 ```
 
 ```{r}
 air_reserve = read_csv("../../data2/air_reserve.csv")
-air_store_info = read_csv("../../data2/air_store_info.csv")
-air_visit_data = read_csv("../../data2/air_visit_data.csv")
-date_info = read_csv("../../data2/date_info.csv")
+air_store = read_csv("../../data2/air_store_info.csv")
+air_visits = read_csv("../../data2/air_visit_data.csv")
+holidays = read_csv("../../data2/date_info.csv")
 hpg_reserve = read_csv("../../data2/hpg_reserve.csv")
-hpg_store_info = read_csv("../../data2/hpg_store_info.csv")
-store_id_relation = read_csv("../../data2/store_id_relation.csv")
-sample_submission = read_csv("../../data2/sample_submission.csv")
+hpg_store = read_csv("../../data2/hpg_store_info.csv")
+store_ids = read_csv("../../data2/store_id_relation.csv")
+test = read_csv("../../data2/sample_submission.csv")
 ```
 ```{r}
-air_reserve %>% 
-  group_by(air_store_id) %>% 
-  summarise(count = sum(reserve_visitors)) %>%
-  ggplot() + 
-  geom_histogram(aes(count))
+# Define multiple plot function
+#
+# ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
+# - cols:   Number of columns in layout
+# - layout: A matrix specifying the layout. If present, 'cols' is ignored.
+#
+# If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
+# then plot 1 will go in the upper left, 2 will go in the upper right, and
+# 3 will go all the way across the bottom.
+#
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+
+  numPlots = length(plots)
+
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                    ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+
+ if (numPlots==1) {
+    print(plots[[1]])
+
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
 ```
+There are over 80 restaurants 
+
+## Air visits
+
+```{r}
+summary(air_visits)
+```
+
+```{r}
+glimpse(air_visits)
+```
+
+Number of unique stores
+
+```{r}
+air_visits %>% distinct(air_store_id) %>% nrow()
+```
+
+## Air reserve
+
+```{r}
+summary(air_reserve)
+```
+
+```{r}
+glimpse(air_reserve)
+```
+
+Number of air stores with reservation data
+
+```{r}
+air_reserve %>% distinct(air_store_id) %>% nrow()
+```
+
+## HPG reserve
+
+```{r}
+summary(hpg_reserve)
+```
+
+```{r}
+glimpse(hpg_reserve)
+```
+
+Number of hpg stores with reservation data
+
+```{r}
+hpg_reserve %>% distinct(hpg_store_id) %>% nrow()
+```
+
+## Air store
+
+```{r}
+summary(air_store)
+```
+
+```{r}
+glimpse(air_store)
+```
+
+### contains genre name and area name.
+
+## HPG store
+
+```{r}
+summary(hpg_store)
+```
+
+```{r}
+glimpse(hpg_store)
+```
+
+ genre_name includes the word style. It’s worth checking whether the same is true for the air data or whether it just refers to the specific “Japanese style”. There are 4690 different hpg_store_ids, which are significantly fewer than we have reservation data for.
+
+## Holidays
+
+```{r}
+summary(holidays)
+```
+
+```{r}
+glimpse(holidays)
+```
+
+## Store IDs
+
+```{r}
+summary(store_ids)
+```
+
+```{r}
+glimpse(store_ids)
+```
+
+### This is a relational file that connects the air and hpg ids. There are only 150 pairs, which is less than 20% of all air stores.
+
+## Test
+
+```{r}
+summary(test)
+```
+
+```{r}
+glimpse(test)
+```
+
+
+
+# Reformatting
+
+```{r}
+air_visits <- air_visits %>%
+  mutate(visit_date = ymd(visit_date))
+
+air_reserve <- air_reserve %>%
+  mutate(visit_datetime = ymd_hms(visit_datetime),
+         reserve_datetime = ymd_hms(reserve_datetime))
+
+hpg_reserve <- hpg_reserve %>%
+  mutate(visit_datetime = ymd_hms(visit_datetime),
+         reserve_datetime = ymd_hms(reserve_datetime))
+
+air_store <- air_store %>%
+  mutate(air_genre_name = as.factor(air_genre_name),
+         air_area_name = as.factor(air_area_name))
+
+hpg_store <- hpg_store %>%
+  mutate(hpg_genre_name = as.factor(hpg_genre_name),
+         hpg_area_name = as.factor(hpg_area_name))
+
+holidays <- holidays %>%
+  mutate(holiday_flg = as.logical(holiday_flg),
+         date = ymd(calendar_date))
+```
+
+# Feature visualization:
+
+## Air visits
+
+```{r}
+p1 <- air_visits %>%
+  group_by(visit_date) %>%
+  summarise(all_visitors = sum(visitors)) %>%
+  ggplot(aes(visit_date,all_visitors)) +
+  geom_line(col = "blue") +
+  labs(y = "All visitors", x = "Date")
+
+p2 <- air_visits %>%
+  ggplot(aes(visitors)) +
+  geom_vline(xintercept = 20, color = "orange") +
+  geom_histogram(fill = "blue", bins = 30) +
+  scale_x_log10()
+
+p3 <- air_visits %>%
+  mutate(wday = wday(visit_date, label = TRUE)) %>%
+  group_by(wday) %>%
+  summarise(visits = median(visitors)) %>%
+  ggplot(aes(wday, visits, fill = wday)) +
+  geom_col() +
+  theme(legend.position = "none", axis.text.x  = element_text(angle=45, hjust=1, vjust=0.9)) +
+  labs(x = "Day of the week", y = "Median visitors")
+  
+p4 <- air_visits %>%
+  mutate(month = month(visit_date, label = TRUE)) %>%
+  group_by(month) %>%
+  summarise(visits = median(visitors)) %>%
+  ggplot(aes(month, visits, fill = month)) +
+  geom_col() +
+  theme(legend.position = "none") +
+  labs(x = "Month", y = "Median visitors")
+
+layout <- matrix(c(1,1,1,1,2,3,4,4),2,4,byrow=TRUE)
+multiplot(p1, p2, p3, p4, layout=layout)
+```
+figure 4 not matching figure 1? should see rapid increase in July
+
+Rapid increase in fig 1 is due to more restaurants joined data set.
+
+```{r}
+p5 <- air_visits %>%
+  group_by(visit_date) %>%
+  summarise(mean_visitors = mean(visitors)) %>%
+  ggplot(aes(visit_date,mean_visitors)) +
+  geom_line(col = "blue") +
+  labs(y = "mean visitors", x = "Date")
+
+print(p5)
+
+```
+
+```{r}
+air_visits %>%
+  filter(visit_date > ymd("2016-04-15") & visit_date < ymd("2016-06-15")) %>%
+  group_by(visit_date) %>%
+  summarise(all_visitors = sum(visitors)) %>%
+  ggplot(aes(visit_date,all_visitors)) +
+  geom_line() +
+  geom_smooth(method = "loess", color = "blue", span = 1/7) +
+  labs(y = "All visitors", x = "Date")
+```
+
+## Air reservations
+
+```{r}
+foo <- air_reserve %>%
+  mutate(reserve_date = date(reserve_datetime),
+         reserve_hour = hour(reserve_datetime),
+         reserve_wday = wday(reserve_datetime, label = TRUE),
+         visit_date = date(visit_datetime),
+         visit_hour = hour(visit_datetime),
+         visit_wday = wday(visit_datetime, label = TRUE),
+         diff_hour = time_length(visit_datetime - reserve_datetime, unit = "hour"),
+         diff_day = time_length(visit_datetime - reserve_datetime, unit = "day")
+         )
+
+p1 <- foo %>%
+  group_by(visit_date) %>%
+  summarise(all_visitors = sum(reserve_visitors)) %>%
+  ggplot(aes(visit_date, all_visitors)) +
+  geom_line() +
+  labs(x = "'air' visit date")
+
+p2 <- foo %>%
+  group_by(visit_hour) %>%
+  summarise(all_visitors = sum(reserve_visitors)) %>%
+  ggplot(aes(visit_hour, all_visitors)) +
+  geom_col(fill = "blue")
+
+p3 <- foo %>%
+  filter(diff_hour < 24*5) %>%
+  group_by(diff_hour) %>%
+  summarise(all_visitors = sum(reserve_visitors)) %>%
+  ggplot(aes(diff_hour, all_visitors)) +
+  geom_col(fill = "blue") +
+  labs(x = "Time from reservation to visit [hours]")
+
+layout <- matrix(c(1,1,2,3),2,2,byrow=TRUE)
+multiplot(p1, p2, p3, layout=layout)
+```
+
+
 
