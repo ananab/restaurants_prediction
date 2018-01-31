@@ -344,5 +344,14 @@ layout <- matrix(c(1,1,2,3),2,2,byrow=TRUE)
 multiplot(p1, p2, p3, layout=layout)
 ```
 
+```{r}
+p1 <- foo %>%
+  group_by(visit_date) %>%
+  summarise(all_visitors = mean(reserve_visitors)) %>%
+  ggplot(aes(visit_date, all_visitors)) +
+  geom_line() +
+  labs(x = "'air' visit date")
+print(p1)
+```
 
 
